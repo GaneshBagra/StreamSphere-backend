@@ -20,9 +20,9 @@ const uploadOnCloudinary = async (localFilePath) => {
       console.log("File is uploaded on cloudinary",result.url);
       return result;
     } catch (error) {
+      console.error("File not uploaded on cloudinary so unlined from local storage",error);
         fs.unlinkSync(localFilePath);
         return null;
-      console.error("File not uploaded on cloudinary so unlined from local storage",error);
 
     }
 };
