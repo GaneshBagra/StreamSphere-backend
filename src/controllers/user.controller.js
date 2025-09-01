@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/fileUpload.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { deleteOnCloudinary } from "../utils/FileDelete.js";
+import mongoose from "mongoose";
 
 // method for generating access and refresh tokens
 
@@ -427,6 +428,56 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     new ApiResponse(200, channel[0], "User channel fetched successfully")
   )
 })
+// using nested aggregation to get watch history
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match : {
+        _id : new mongoose.Types.ObjectId(req.user._id)
+      }
+    },
+    {
+      $lookup : {
+        from : "videos",
+        localField : "watchHistory",
+        foreignField : "_id",
+        as : "watchHistroy",
+        pipeline : [
+          {
+            $lookup : {
+              from : "users",
+              localField : "videoOwner",
+              foreignField : "_id",
+              as : "videoOwner",
+              pipeline : [
+                {
+                  $project : {
+                    username : 1,
+                    fullName : 1,
+                    avatar : 1,
+                    coverImage : 1
+                  }
+                }
+              ]
+            }
+          },
+          {
+            $addFields : {
+              videoOwner :{
+                $first : "$videoOwner"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ])
+
+  return res.status(200)
+  .json(
+    new ApiResponse(200, user[0].watchHistory, "Watch history fetched successfully")
+  )
+})
 
 export {
   resgisterUser,
@@ -437,5 +488,6 @@ export {
   getCurrentUser,
   updateUserAvatar,
   updateCoverImage,
-  getUserChannelProfile
+  getUserChannelProfile,
+  getWatchHistory
 };
