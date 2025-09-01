@@ -203,6 +203,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     )
 
 });
+// refreshAccessToken controller 
 
 const refreshAccessToken = asyncHandler(async (req,res) => {
   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
@@ -246,6 +247,11 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
 
 }) 
 
-// refreshAccessToken controller 
+// update user controller
+
+const updateUser = asyncHandler(async (req,res) => {
+  
+})
+
 
 export { resgisterUser, loginUser, logoutUser, refreshAccessToken };
