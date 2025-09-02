@@ -43,16 +43,16 @@ router.route("/refresh-token").post(refreshAccessToken);
 
 router.route("/change-password").post(varifyJWT, changeCurrentPassword);
 router.route("/current-user").get(varifyJWT, getCurrentUser);
-router.route("/update-account-details").patch(UpdateAccoundDetails);
+router.route("/update-account-details").patch(varifyJWT,UpdateAccoundDetails);
 
 router
   .route("/update-user-avatar")
   .patch(varifyJWT, upload.single("avatar"), updateUserAvatar);
 router
   .route("/update-user-coverImage")
-  .patch(varifyJWT, upload.single("avatar"), updateUserAvatar);
+  .patch(varifyJWT, upload.single("coverImage"), updateCoverImage);
 
-router.route("/c:username").get(getUserChannelProfile);
+router.route("/c/:username").get(getUserChannelProfile);
 router.route("/watch-history").get(varifyJWT, getWatchHistory);
 
 export default router;

@@ -5,7 +5,7 @@ import { uploadOnCloudinary } from "../utils/fileUpload.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { deleteOnCloudinary } from "../utils/FileDelete.js";
-import mongoose from "mongoose";
+import mongoose, { set } from "mongoose";
 
 // method for generating access and refresh tokens
 
@@ -17,7 +17,6 @@ const generateAccessAnsResponseTokens = async (userId) => {
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
-
     return { accessToken, refreshToken };
   } catch (error) {
     throw new ApiError(
@@ -183,7 +182,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     req.user._id,
     {
       $set: {
-        refreshToken: undefined,
+        refreshToken: 1,
       },
     },
     {
@@ -231,16 +230,17 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: true,
     };
 
-    const { accessToken, newRefreshToken } =
+    const { accessToken, refreshToken } =
       await generateAccessAnsResponseTokens(user._id);
+
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { accessToken, newRefreshToken: newRefreshToken },
+          { accessToken, refreshToken },
           "Tokens successfully refreshed"
         )
       );
@@ -258,7 +258,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
   if (!isPasswordCorrect) {
-    throw new ApiError(4040, "invalid password");
+    throw new ApiError(4040, "invalid old password");
   }
 
   user.password = newPassword;
@@ -279,9 +279,12 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 const UpdateAccoundDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
 
-  if (!(fullName || email)) {
+  if (!(fullName && email)) {
     throw new ApiError(400, "All fields are required");
   }
+
+  
+  
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
@@ -294,12 +297,21 @@ const UpdateAccoundDetails = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password -refreshToken");
 
+  // console.log(user)
+
   return res
     .status(200)
     .json(new ApiResponse(200, user, "User updated successfully"));
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
+
+  const user = await User.findById(req.user?._id)
+
+  if (!user) {
+    throw new ApiError(401, "User not found");
+  }
+
   const avatarLocalPath = req.file?.path;
 
   if (!avatarLocalPath) {
@@ -312,26 +324,33 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Error while uploading avatar");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      avatar: cloudinaryPath.url,
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+  user.avatar = cloudinaryPath.url
 
-  const deleteOnCloudinary = await deleteOnCloudinary(cloudinaryPath);
+  const userUpdated = await user.save({validateBeforeSave : false})
+  
+  const finalUser = userUpdated.toObject()
+  delete finalUser.password
+  delete finalUser.refreshToken  
 
-  if(!deleteOnCloudinary){
+  const deleteFromCloudinary = await deleteOnCloudinary(user?.avatar.split('/').at(-1).split('.')[0]);
+
+  if(!deleteFromCloudinary){
     throw new ApiError(500, "Failed to delete from clodinary")
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Avatar updated successfully"));
+    .json(new ApiResponse(200, finalUser, "Avatar updated successfully"));
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
+
+  const user = await User.findById(req.user?._id)
+
+  if (!user) {
+    throw new ApiError(401, "User not found");
+  }
+
   const coverImageLocalPath = req.file?.path;
 
   if (!coverImageLocalPath) {
@@ -344,17 +363,23 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Error while uploading coverImage");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      coverImage: cloudinaryPath.url,
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+  user.coverImage = cloudinaryPath.url
+  const updatedUser = await user.save({validateBeforeSave : false});
+
+  const finalUser = updatedUser.toObject()
+  delete finalUser.password
+  delete finalUser.refreshToken
+
+
+  const deleteFromCloudinary = await deleteOnCloudinary(user?.coverImage.split('/').at(-1).split('.')[0]);
+
+  if(!deleteFromCloudinary){
+    throw new ApiError(500, "Failed to delete from clodinary")
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "coverImage updated successfully"));
+    .json(new ApiResponse(200, finalUser, "coverImage updated successfully"));
 });
 
 // using aggragtion pipelines to get the subscribers and subscribed for the user profile
@@ -375,7 +400,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     {
       $lookup : {
         from : "subscriptions",
-        localField : _id,
+        localField : "_id",
         foreignField : "channel",
         as : "subscribers"
       }
@@ -383,7 +408,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     {
       $lookup : {
         from : "subscriptions",
-        localField : _id,
+        localField : "_id",
         foreignField : "subscriber",
         as : "subscribedTo"
       }
@@ -397,11 +422,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
           $size : "$subscribedTo"
         },
         isSubscribed :{
-          $condition : {
-            if : {$in : [req.user?._id, "$subscribers.subscriber"]},
-            then : true,
-            else : false
-          }
+          $cond : [
+            {$in : [req.user?._id, "$subscribers.subscriber"]},
+            true,
+            false
+        ]
         }
       }
     },
@@ -421,7 +446,6 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   if(!channel?.length){
     throw new ApiError(404, "channel does not exist")
   }
-  console.log(channel)
   
   return res.status(200)
   .json(

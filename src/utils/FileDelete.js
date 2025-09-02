@@ -8,9 +8,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_SECRET
 });
 
-const deleteOnCloudinary = async (clodinaryResult) => {
+const deleteOnCloudinary = async (publicId) => {
     try {
-        clodinaryPublicId = clodinaryResult?.public_id
+        const clodinaryPublicId = publicId
         const result = await cloudinary.uploader.destroy(clodinaryPublicId)
         return result;
         
