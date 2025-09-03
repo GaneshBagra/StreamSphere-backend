@@ -8,10 +8,10 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_SECRET
 });
 
-const deleteOnCloudinary = async (publicId) => {
+const deleteOnCloudinary = async (publicId, type = "image") => {
     try {
         const clodinaryPublicId = publicId
-        const result = await cloudinary.uploader.destroy(clodinaryPublicId)
+        const result = await cloudinary.uploader.destroy(clodinaryPublicId,{resource_type : type})
         return result;
         
     } catch (error) {
