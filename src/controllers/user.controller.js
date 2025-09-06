@@ -465,7 +465,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         from : "videos",
         localField : "watchHistory",
         foreignField : "_id",
-        as : "watchHistroy",
+        as : "watchHistory",
         pipeline : [
           {
             $lookup : {
@@ -503,6 +503,23 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   )
 })
 
+const addVideoToWatchHistory = asyncHandler(async (req, res) => {
+  const {videoId} = req.params
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {$addToSet : {watchHistory : videoId}},
+    {new : true}
+  )
+
+
+  res.status(200)
+  .json(
+    new ApiResponse(200, user, "Video added to the history")
+  )
+})
+
+
 export {
   resgisterUser,
   loginUser,
@@ -514,5 +531,6 @@ export {
   updateUserAvatar,
   updateCoverImage,
   getUserChannelProfile,
-  getWatchHistory
+  getWatchHistory,
+  addVideoToWatchHistory
 };

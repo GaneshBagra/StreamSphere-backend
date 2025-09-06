@@ -6,7 +6,8 @@ import {
   getVideoById,
   updateVideo,
   deleteVideo,
-  togglePublishStatus
+  togglePublishStatus,
+  getAllVideos
 } from "../controllers/video.controller.js";
 
 const router = new Router();
@@ -27,6 +28,9 @@ router.route("/").post(
   ]),
   publishAVideo
 );
+
+// get video by query
+router.route("/").get(getAllVideos);
 // get video by id
 router.route("/:videoId").get(getVideoById)
 // update video details

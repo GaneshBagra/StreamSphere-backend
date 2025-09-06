@@ -7,6 +7,53 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import {deleteOnCloudinary} from "../utils/FileDelete.js"
 
 
+const getAllVideos = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+
+  const pageNum = Math.max(1, parseInt(page));
+  const limitNum = Math.max(1, parseInt(limit));
+
+  let pipeline = [];
+
+  // Filter by user
+  if (userId) {
+    pipeline.push({ $match: { videoOwner: new mongoose.Types.ObjectId(userId) } });
+  }
+
+  // Search by title
+  if (query) {
+    pipeline.push({
+      $match: { title: { $regex: query, $options: "i" } },
+    });
+  }
+
+  // Sorting
+  if (sortBy) {
+    let sortStage = {};
+    sortStage[sortBy] = sortType === "asc" ? 1 : -1;
+    pipeline.push({ $sort: sortStage });
+  } else {
+    pipeline.push({ $sort: { createdAt: -1 } });
+  }
+
+  const agg = Video.aggregate(pipeline);
+
+  Video.aggregatePaginate(
+    agg,
+    { page: pageNum, limit: limitNum },
+    (err, result) => {
+      if (err) {
+        throw new ApiError(500 , err.message || "Error to get the videos")
+      }
+      res.status(200)
+      .json(
+        new ApiResponse(200, result, "Data fetched successfully")
+      )
+    }
+  );
+});
+
+
 const publishAVideo = asyncHandler( async (req, res) => {
     const {title, description} = req.body
 
@@ -209,5 +256,6 @@ export {
     getVideoById,
     updateVideo,
     deleteVideo,
-    togglePublishStatus
+    togglePublishStatus,
+    getAllVideos
 }
