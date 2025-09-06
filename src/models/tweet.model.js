@@ -16,4 +16,4 @@ const tweetSchema = Schema(
   { timestamps: true }
 );
 
-export const Tweet = model("Tweet", playlistSchema);
+export const Tweet = model("Tweet", tweetSchema);
